@@ -21,8 +21,20 @@ from concordia.utils import measurements as measurements_lib
 # import value_comp
 from concordia.components.agent import memory_component
 
-profile_dict = {
+profile_dict_NT = {
+    'sociable': 'sense of safety and attachment',
+    'self-directed': 'need for autonomy',
+    'broad-minded': 'exploration and cognitive curiosity',
+    'affiliative': 'social interaction',
+    'expressive': 'emotional expression',
+}
 
+profile_dict_AS = {
+    'environment-centered': 'sense of safety and attachment',
+    'routine-driven': 'need for autonomy',
+    'deep-focused': 'exploration and cognitive curiosity',
+    'rule-oriented': 'social interaction',
+    'patterned-expressive': 'emotional expression',
 }
 
 decrease_map = {
@@ -64,7 +76,12 @@ values_dict = values_names_descriptions
 values_dict = values_names_descriptions
 from pprint import pprint
 
-def construct_all_profile_dict(wanted_desires: list[str], hidden_desires: list[str], predefined_desires: dict = None):
+def construct_all_profile_dict(
+        wanted_desires: list[str],
+        hidden_desires: list[str],
+        predefined_desires: dict = None,
+        agent_category: str = None,
+):
   if predefined_desires is not None:
     visual_desires_dict = predefined_desires['visual_desires_dict']
     hidden_desires_dict = predefined_desires['hidden_desires_dict']
@@ -82,7 +99,12 @@ def construct_all_profile_dict(wanted_desires: list[str], hidden_desires: list[s
     return visual_desires_dict, hidden_desires_dict, selected_profile_dict, traits_dict, traits
 
   selected_profile_dict = dict() # key: desire, value: adj
-  inverted_profile_dict = {desire: adj for adj, desire in profile_dict.items()}
+  if agent_category == 'NT':
+    inverted_profile_dict = {desire: adj for adj, desire in profile_dict_NT.items()}
+  elif agent_category == 'AS':
+    inverted_profile_dict = {desire: adj for adj, desire in profile_dict_AS.items()}
+  else:
+    raise ValueError(f"Invalid agent category: {agent_category}")
   # pprint(f"inverted_profile_dict: {inverted_profile_dict}")
   for desire in wanted_desires:
     # pprint(f"desire: {desire}")
@@ -124,11 +146,18 @@ def construct_all_profile_dict(wanted_desires: list[str], hidden_desires: list[s
 
   traits = '\n'.join(traits)
 
-  return (visual_desires_dict,
-          hidden_desires_dict,
-          selected_profile_dict,
-          traits_dict,
-          traits)
+  # return (visual_desires_dict,
+  #         hidden_desires_dict,
+  #         selected_profile_dict,
+  #         traits_dict,
+  #         traits)
+  return {
+        'visual_desires_dict': visual_desires_dict,
+        'hidden_desires_dict': hidden_desires_dict,
+        'selected_desire_dict': selected_profile_dict,
+        'all_desire_traits_dict': traits_dict,
+        'visual_desire_string': traits,
+  }
 
 
 
@@ -138,10 +167,15 @@ def _get_class_name(object_: object) -> str:
 
 
 
-def preprocess_value_information(context_dict, predefined_setting, selected_desires: list[str]):
+def preprocess_value_information(context_dict, predefined_setting, selected_desires: list[str],agent_category: str):
     # profile_dict is in current file
     ### init the information to be used in the value component
-    revert_profile_dict = {value: adj for adj, value in profile_dict.items()}
+    if agent_category == 'NT':
+        revert_profile_dict = {value: adj for adj, value in profile_dict_NT.items()}
+    elif agent_category == 'AS':
+        revert_profile_dict = {value: adj for adj, value in profile_dict_AS.items()}
+    else:
+        raise ValueError(f"Invalid agent category: {agent_category}")
     expected_values = dict()
 
     # desires that should be reversed, i.e. the higher the value, the worse the situation

@@ -18,7 +18,6 @@ from collections.abc import Callable, Sequence
 from concordia.typing import logging
 from concordia.document import interactive_document
 from concordia.typing.entity import ActionSpec
-from .hardcoded_value_state import hardcoded_state_AS
 from .hardcoded_value_state import hardcoded_state_NT
 DEFAULT_VALUE_SCALE = tuple(range(11))
 def _get_class_name(object_: object) -> str:
@@ -249,12 +248,7 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
 
         return current_quatitative_value, prompt.view().text()
 
-    def _convert_numeric_desire_to_qualitative_by_hard_coding_AS(self) -> str:
-        current_value = round(self._value)
-        qualitative_value = hardcoded_state_AS[self.get_desire_name()][current_value]
-        return qualitative_value, "By hard coding"
-
-    def _convert_numeric_desire_to_qualitative_by_hard_coding_NT(self) -> str:
+    def _convert_numeric_desire_to_qualitative_by_hard_coding(self) -> str:
         current_value = round(self._value)
         qualitative_value = hardcoded_state_NT[self.get_desire_name()][current_value]
         return qualitative_value, "By hard coding"
@@ -336,25 +330,60 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
         self._action_cache.append(action_attempt)
         return ''
 
-class SenseOfSafetyAndAttachment(desire):
+class PsychologicalSafety(desire):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
 
-class NeedForAutonomy(desire):
+class EmotionalSafety(desire):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
 
-class ExplorationAndCognitiveCuriosity(desire):
+class GroupAcceptance(desire):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
 
-class SocialInteraction(desire):
+class SupportSystem(desire):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
 
-class EmotionalExpression(desire):
+class SenseOfSuperiority(desire):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
+
+class SelfWorth(desire):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class SenseOfRespect(desire):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class SenseOfMeaning(desire):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class SenseOfControl(desire):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class PassionAndMotivation(desire):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class EmotionalStability(desire):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class EmotionalWellbeing(desire):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class PsychologicalResilience(desire):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+# class SenseOfWonder(desire):
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(**kwargs)
 
 ## end here
 
@@ -401,25 +430,67 @@ class desireWithoutPreAct(agent_components.action_spec_ignored.ActionSpecIgnored
     def post_act(self, action_attempt: str) -> str:
         return self._component.post_act(action_attempt)
 
-class SenseOfSafetyAndAttachmentWithoutPreAct(desireWithoutPreAct):
+# 安全需求
+class PsychologicalSafetyWithoutPreAct(desireWithoutPreAct):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
 
-class NeedForAutonomyWithoutPreAct(desireWithoutPreAct):
+class EmotionalSafetyWithoutPreAct(desireWithoutPreAct):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
 
-class ExplorationAndCognitiveCuriosityWithoutPreAct(desireWithoutPreAct):
+# 社会归属需求
+class GroupAcceptanceWithoutPreAct(desireWithoutPreAct):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
 
-class SocialInteractionWithoutPreAct(desireWithoutPreAct):
+class SupportSystemWithoutPreAct(desireWithoutPreAct):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
 
-class EmotionalExpressionWithoutPreAct(desireWithoutPreAct):
+class SenseOfSuperiorityWithoutPreAct(desireWithoutPreAct):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
+
+# 自尊需求
+class SelfWorthWithoutPreAct(desireWithoutPreAct):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class SenseOfRespectWithoutPreAct(desireWithoutPreAct):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+# 意义与成长需求
+class SenseOfMeaningWithoutPreAct(desireWithoutPreAct):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class SenseOfControlWithoutPreAct(desireWithoutPreAct):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class PassionAndMotivationWithoutPreAct(desireWithoutPreAct):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+# 心理健康需求
+class EmotionalStabilityWithoutPreAct(desireWithoutPreAct):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class EmotionalWellbeingWithoutPreAct(desireWithoutPreAct):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+class PsychologicalResilienceWithoutPreAct(desireWithoutPreAct):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+# class SenseOfWonderWithoutPreAct(desireWithoutPreAct):
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(**kwargs)
+
+
 ## end here
 
 class ValueTracker(agent_components.action_spec_ignored.ActionSpecIgnored):
