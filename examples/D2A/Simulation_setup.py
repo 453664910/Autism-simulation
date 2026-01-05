@@ -46,7 +46,7 @@ else:
 # you can also use other models, detailed see the definition of language_model_setup
 api_type = 'openai'
 model_name = 'gpt-4o-mini'
-api_key=''
+api_key='sk-wfHZW0o4ss75rxp2briUPMNUcpFPpLghl7u67qzsUXKBgQ0w'
 device = 'cpu'
 model = utils.language_model_setup(
     api_type=api_type,

@@ -171,77 +171,82 @@ class FormativeMemoryFactory:
       memory: the memory structure to fill
       agent_config: structured description of an agent
     """
-    description = self.make_backstory(agent_config)
-    prompt = interactive_document.InteractiveDocument(self._model)
-    prompt.statement('Creative Writing Master Class\n')
-    prompt.statement('Character background story:\n\n' + description)
+    # 注释掉：生成过往记忆片段（formative episodes）的代码
+    # 这部分代码会为配角生成多个年龄段的过往记忆，现在暂时禁用
+    # description = self.make_backstory(agent_config)
+    # prompt = interactive_document.InteractiveDocument(self._model)
+    # prompt.statement('Creative Writing Master Class\n')
+    # prompt.statement('Character background story:\n\n' + description)
 
-    question = (
-        'Given the life story above, invent formative episodes from '
-        f'the life of {agent_config.name} which could have taken '
-        f'place at the following ages: {agent_config.formative_ages}. '
-        'The episodes should be age appropriate and believeable. '
-        f'They should be memorable events for {agent_config.name} and '
-        'important for establishing who they are as a person. They should '
-        f'be consistent with {agent_config.name}\'s personality and '
-        f'circumstances. Describe each episode from {agent_config.name}\'s '
-        'perspective and use third-person limited point of view. Each episode '
-        'must mention their age at the time the event occurred using language '
-        f'such as "When {agent_config.name} was 5 years old, they '
-        'experienced..." . Use past tense. Write no more than three sentences '
-        'per episode. Separate episodes from one another by the delimiter '
-        f'"{self._delimiter_symbol}". Do not apply any other '
-        'special formatting besides these delimiters.'
-    )
-    if agent_config.traits:
-      question += (
-          '\nTaken as a whole, these formative episodes from the life of '
-          f'{agent_config.name} should explain their personality, which has '
-          f'been described as: "{agent_config.traits}".')
-    if agent_config.context:
-      question += (
-          'Make a few of the episodes relate to the '
-          f'following context: "{agent_config.context}".'
-      )
+    # question = (
+    #     'Given the life story above, invent formative episodes from '
+    #     f'the life of {agent_config.name} which could have taken '
+    #     f'place at the following ages: {agent_config.formative_ages}. '
+    #     'The episodes should be age appropriate and believeable. '
+    #     f'They should be memorable events for {agent_config.name} and '
+    #     'important for establishing who they are as a person. They should '
+    #     f'be consistent with {agent_config.name}\'s personality and '
+    #     f'circumstances. Describe each episode from {agent_config.name}\'s '
+    #     'perspective and use third-person limited point of view. Each episode '
+    #     'must mention their age at the time the event occurred using language '
+    #     f'such as "When {agent_config.name} was 5 years old, they '
+    #     'experienced..." . Use past tense. Write no more than three sentences '
+    #     'per episode. Separate episodes from one another by the delimiter '
+    #     f'"{self._delimiter_symbol}". Do not apply any other '
+    #     'special formatting besides these delimiters.'
+    # )
+    # if agent_config.traits:
+    #   question += (
+    #       '\nTaken as a whole, these formative episodes from the life of '
+    #       f'{agent_config.name} should explain their personality, which has '
+    #       f'been described as: "{agent_config.traits}".')
+    # if agent_config.context:
+    #   question += (
+    #       'Make a few of the episodes relate to the '
+    #       f'following context: "{agent_config.context}".'
+    #   )
 
-    aggregated_result = prompt.open_question(
-        question=question,
-        max_tokens=6000,
-        terminators=[],
-    )
+    # aggregated_result = prompt.open_question(
+    #     question=question,
+    #     max_tokens=6000,
+    #     terminators=[],
+    # )
 
-    episodes = list(aggregated_result.split(self._delimiter_symbol))
+    # episodes = list(aggregated_result.split(self._delimiter_symbol))
 
-    # If some episodes are still missing then try to regenerate them.
-    formative_ages_list = list(agent_config.formative_ages)
-    if len(episodes) != len(formative_ages_list):
-      num_missing = len(formative_ages_list) - len(episodes)
-      if num_missing > 0:
-        for age in list(formative_ages_list[len(episodes):]):
-          episode = prompt.open_question(
-              question=(
-                  f"What is {agent_config.name}'s formative memory from "
-                  f'age {age}?'
-              ),
-              max_tokens=1000,
-              terminators=(self._delimiter_symbol, '.\n', '\nQuestion:'),
-          )
-          episodes.append(episode)
+    # # If some episodes are still missing then try to regenerate them.
+    # formative_ages_list = list(agent_config.formative_ages)
+    # if len(episodes) != len(formative_ages_list):
+    #   num_missing = len(formative_ages_list) - len(episodes)
+    #   if num_missing > 0:
+    #     for age in list(formative_ages_list[len(episodes):]):
+    #       episode = prompt.open_question(
+    #           question=(
+    #               f"What is {agent_config.name}'s formative memory from "
+    #               f'age {age}?'
+    #           ),
+    #           max_tokens=1000,
+    #           terminators=(self._delimiter_symbol, '.\n', '\nQuestion:'),
+    #       )
+    #       episodes.append(episode)
 
-    if len(episodes) != len(formative_ages_list):
-      logger.warning(
-          'Warning: Number of generated formative episodes ' +
-          f'({len(episodes)}) does not match number of formative ages ' +
-          f'({len(formative_ages_list)}). This is just a warning and '
-          'probably not problematic.')
+    # if len(episodes) != len(formative_ages_list):
+    #   logger.warning(
+    #       'Warning: Number of generated formative episodes ' +
+    #       f'({len(episodes)}) does not match number of formative ages ' +
+    #       f'({len(formative_ages_list)}). This is just a warning and '
+    #       'probably not problematic.')
 
-    for episode_age, episode in zip(agent_config.formative_ages, episodes):
-      memory.add(
-          episode,
-          tags=['episode'],
-          timestamp=(
-              agent_config.date_of_birth + relativedelta(years=episode_age)),
-      )
+    # for episode_age, episode in zip(agent_config.formative_ages, episodes):
+    #   memory.add(
+    #       episode,
+    #       tags=['episode'],
+    #       timestamp=(
+    #           agent_config.date_of_birth + relativedelta(years=episode_age)),
+    #   )
+    
+    # 现在这个方法不生成任何过往记忆片段，只保留方法结构
+    pass
 
     if self._current_date:
       age = relativedelta(self._current_date, agent_config.date_of_birth).years
@@ -259,25 +264,44 @@ class FormativeMemoryFactory:
 
     mem = self._blank_memory_factory_call()
     # All players share generic memories.
-    for item in self._shared_memories:
-      mem.add(item)
+    # 修复：如果 shared_memories 是字符串，按句子分割后添加；如果是列表，遍历添加
+    # 这样可以避免将字符串当作字符序列遍历，导致每个字符都被单独编码（非常慢）
+    if isinstance(self._shared_memories, str):
+      # 如果是字符串，按句子分割（以句号、问号、感叹号分割）
+      import re
+      # 使用正则表达式按句子边界分割
+      sentences = re.split(r'(?<=[.!?])\s+', self._shared_memories)
+      # 过滤空字符串并添加每个句子作为独立的记忆项
+      for sentence in sentences:
+        sentence = sentence.strip()
+        if sentence:  # 确保不是空字符串
+          # 设置固定 importance=1.0，避免每次都要检索已有记忆来计算 importance（加快速度）
+          mem.add(sentence, importance=1.0)
+    else:
+      # 如果是列表或其他序列，遍历添加
+      for item in self._shared_memories:
+        # 设置固定 importance=1.0，避免每次都要检索已有记忆来计算 importance（加快速度）
+        mem.add(item, importance=1.0)
 
     context = agent_config.context
     if agent_config.goal:
       context += '\n' + agent_config.goal
 
-    self.add_memories(memory=mem, agent_config=agent_config)
+    # 注释掉：不再为配角生成过往记忆片段，以加快初始化速度
+    # self.add_memories(memory=mem, agent_config=agent_config)
 
     if context:
       context_items = context.split('\n')
       for item in context_items:
         if item:
-          mem.add(item)
+          # 设置固定 importance=1.0，避免每次都要检索已有记忆来计算 importance（加快速度）
+          mem.add(item, importance=1.0)
 
     if agent_config.specific_memories:
       specific_memories = agent_config.specific_memories.split('\n')
       for item in specific_memories:
         if item:
-          mem.add(item)
+          # 设置固定 importance=1.0，避免每次都要检索已有记忆来计算 importance（加快速度）
+          mem.add(item, importance=1.0)
 
     return mem
