@@ -70,21 +70,31 @@ class BaseGPTModel(language_model.LanguageModel):
             {'role': 'user',
              'content': prompt}
         ]
-        try:
-            response = self._client.chat.completions.create(
-                model=self._model_name,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                timeout=timeout,
-                stop=terminators,
-                seed=seed,
+        content = None
+        for attempt in range(3):
+            try:
+                response = self._client.chat.completions.create(
+                    model=self._model_name,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    timeout=timeout,
+                    stop=terminators,
+                    seed=seed,
+                )
+            except Exception as e:
+                print(f"Error during API call: {e}")
+                raise
+
+            content = response.choices[0].message.content
+            if content is not None:
+                break
+            print("Empty response content; retrying...")
+
+        if content is None:
+            raise language_model.InvalidResponseError(
+                "Model returned empty content after retries."
             )
-
-        except Exception as e:
-            print(f"Error during API call: {e}")
-            raise
-
 
         if self._measurements is not None:
             self._measurements.publish_datum(
