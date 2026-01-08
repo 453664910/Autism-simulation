@@ -12,7 +12,7 @@ _current_file_dir = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(_current_file_dir))
 
 # how many episodes in each simulation, each episode is 20 minutes
-episode_length = 3
+episode_length = 1
 # NUM_PLAYERS is the number of NT players in the simulation
 NUM_PLAYERS = 1
 

@@ -296,6 +296,7 @@ class FormativeMemoryFactory:
         if item:
           # 设置固定 importance=1.0，避免每次都要检索已有记忆来计算 importance（加快速度）
           mem.add(item, importance=1.0)
+          # mem.add(item)
 
     if agent_config.specific_memories:
       specific_memories = agent_config.specific_memories.split('\n')
@@ -303,5 +304,6 @@ class FormativeMemoryFactory:
         if item:
           # 设置固定 importance=1.0，避免每次都要检索已有记忆来计算 importance（加快速度）
           mem.add(item, importance=1.0)
+          # mem.add(item)
 
     return mem
