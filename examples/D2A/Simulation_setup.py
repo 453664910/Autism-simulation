@@ -11,6 +11,10 @@ from value_components.hardcoded_value_state import hardcoded_state_AS
 _current_file_dir = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(_current_file_dir))
 
+# check point文件夹目录以及check point文件目录
+checkpoint_folder = None
+checkpoint_file = None
+
 # how many episodes in each simulation, each episode is 20 minutes
 episode_length = 1
 # NUM_PLAYERS is the number of NT players in the simulation
