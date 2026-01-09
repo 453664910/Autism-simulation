@@ -13,12 +13,13 @@ ROOT = os.path.dirname(os.path.dirname(_current_file_dir))
 
 # check point文件夹目录以及check point文件目录
 checkpoint_folder = None
+checkpoint_folder = r'D:\gitpro\Autism-simulation\examples\D2A\result_folder\sim_result\2026-01-09_09-46-50\checkpoints\2026-01-09_10-45-26'
 checkpoint_file = None
 
 # how many episodes in each simulation, each episode is 20 minutes
 episode_length = 1
 # NUM_PLAYERS is the number of NT players in the simulation
-NUM_PLAYERS = 1
+NUM_PLAYERS = 0
 
 # whether to use the language model, if set to True, No language model will be used
 # use for debugging
