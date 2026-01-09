@@ -13,8 +13,9 @@ ROOT = os.path.dirname(os.path.dirname(_current_file_dir))
 
 # check point文件夹目录以及check point文件目录
 checkpoint_folder = None
-# checkpoint_folder = r'D:\gitpro\Autism-simulation\examples\D2A\result_folder\sim_result\2026-01-09_09-46-50\checkpoints\2026-01-09_10-45-26'
+# checkpoint_folder = r'D:\gitpro\Autism-simulation\examples\D2A\result_folder\sim_result\2026-01-09_15-00-13\checkpoints\2026-01-09_15-00-52\checkpoint_step_000000.pkl'
 checkpoint_file = None
+# checkpoint_file = r'D:\gitpro\Autism-simulation\examples\D2A\result_folder\sim_result\2026-01-09_15-00-13\checkpoints\2026-01-09_15-00-52\checkpoint_step_000000.pkl'
 
 # how many episodes in each simulation, each episode is 20 minutes
 episode_length = 1
@@ -35,7 +36,7 @@ embedder = lambda x: st_model.encode(x, show_progress_bar=False)
 Use_Previous_profile = False
 previous_profile_file = None
 previous_profile = None
-
+# TODO：修改previous_profile_file路径读取方式
 # if Use_Previous_profile is True, the previous profile file should be provided
 if Use_Previous_profile:
   previous_profile_file = os.path.join(r'examples\D2A\result_folder\indoor_result\Your folder name', 'Your previous profile name.json')
