@@ -324,12 +324,12 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
     def _restore_action_cache_from_breakpoint(self) -> bool:
         breakpoint_path = self._resolve_breakpoint_path()
         if breakpoint_path is None:
-            print(
-                "[desire] no breakpoint file configured; action cache not restored. "
-                "Set D2A_BREAKPOINT_FILE/D2A_CHECKPOINT_FILE, load "
-                "Simulation_setup.checkpoint_file/checkpoint_folder, or point to a "
-                "total_simulation *.json that includes action_sequence."
-            )
+            # print(
+            #     "[desire] no breakpoint file configured; action cache not restored. "
+            #     "Set D2A_BREAKPOINT_FILE/D2A_CHECKPOINT_FILE, load "
+            #     "Simulation_setup.checkpoint_file/checkpoint_folder, or point to a "
+            #     "total_simulation *.json that includes action_sequence."
+            # )
             return False
         if not os.path.isfile(breakpoint_path):
             print(f"[desire] breakpoint file not found: {breakpoint_path}; action cache not restored.")
