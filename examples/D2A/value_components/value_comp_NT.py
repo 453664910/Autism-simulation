@@ -1,10 +1,9 @@
 import json
 import os
-import dill
 
 from collections.abc import Mapping
 import datetime
-import types
+import sys
 from concordia.typing import entity as entity_lib
 from concordia.agents import entity_agent_with_logging
 from concordia.associative_memory import associative_memory
@@ -308,19 +307,25 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
     def _restore_action_cache_from_breakpoint(self) -> bool:
         breakpoint_path = self._resolve_breakpoint_path()
         if breakpoint_path is None:
-            print("[desire] no breakpoint file configured; action cache not restored.")
+            print(
+                "[desire] no breakpoint file configured; action cache not restored. "
+                "Set D2A_BREAKPOINT_FILE/D2A_CHECKPOINT_FILE, load "
+                "Simulation_setup.checkpoint_file/checkpoint_folder, or point to a "
+                "total_simulation *.json that includes action_sequence."
+            )
             return False
         if not os.path.isfile(breakpoint_path):
             print(f"[desire] breakpoint file not found: {breakpoint_path}; action cache not restored.")
             return False
         if breakpoint_path.endswith(".pkl"):
-            with open(breakpoint_path, "rb") as breakpoint_file:
-                data = dill.load(breakpoint_file)
-            action_text = self._extract_action_from_checkpoint(data)
-        else:
-            with open(breakpoint_path, "r", encoding="utf-8") as breakpoint_file:
-                data = json.load(breakpoint_file)
-            action_text = self._extract_action_from_json(data)
+            print(
+                "[desire] checkpoint .pkl detected; skip pkl extraction and "
+                "look for total_simulation json instead."
+            )
+            return False
+        with open(breakpoint_path, "r", encoding="utf-8") as breakpoint_file:
+            data = json.load(breakpoint_file)
+        action_text = self._extract_action_from_json(data)
         if not action_text:
             print(f"[desire] breakpoint file {breakpoint_path} has no valid action text; action cache not restored.")
             return False
@@ -331,15 +336,94 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
     def _resolve_breakpoint_path(self) -> str | None:
         breakpoint_file = os.environ.get("D2A_BREAKPOINT_FILE")
         if breakpoint_file:
-            return breakpoint_file
+            return self._resolve_action_json_path(breakpoint_file)
         checkpoint_file = os.environ.get("D2A_CHECKPOINT_FILE")
         if checkpoint_file:
-            return checkpoint_file
+            return self._resolve_action_json_path(breakpoint_file)
         checkpoint_dir = os.environ.get("D2A_CHECKPOINT_DIR")
         if checkpoint_dir:
-            return self._find_latest_checkpoint(checkpoint_dir)
+            latest_checkpoint = self._find_latest_checkpoint(checkpoint_dir)
+            return self._resolve_action_json_path(latest_checkpoint)
+        setup_checkpoint = self._resolve_breakpoint_path_from_setup()
+        if setup_checkpoint:
+            return self._resolve_action_json_path(setup_checkpoint)
+        runtime_folder = self._resolve_total_simulation_folder_from_runtime()
+        if runtime_folder:
+            return self._find_latest_action_json(runtime_folder)
         default_dir = os.path.join(os.getcwd(), "checkpoints")
-        return self._find_latest_checkpoint(default_dir)
+        latest_checkpoint = self._find_latest_checkpoint(default_dir)
+        return self._resolve_action_json_path(latest_checkpoint)
+
+    def _resolve_breakpoint_path_from_setup(self) -> str | None:
+        setup_module = sys.modules.get("Simulation_setup")
+        if setup_module is None:
+            return None
+        setup_checkpoint_file = getattr(setup_module, "checkpoint_file", None)
+        if setup_checkpoint_file:
+            return setup_checkpoint_file
+        setup_checkpoint_dir = getattr(setup_module, "checkpoint_folder", None)
+        if setup_checkpoint_dir:
+            return self._find_latest_checkpoint(setup_checkpoint_dir)
+        return None
+
+    def _resolve_total_simulation_folder_from_runtime(self) -> str | None:
+        runtime_module = sys.modules.get("__main__")
+        if runtime_module is None:
+            return None
+        total_simulation_folder = getattr(runtime_module, "total_simulation_folder", None)
+        if total_simulation_folder:
+            return total_simulation_folder
+        stored_target_folder = getattr(runtime_module, "stored_target_folder", None)
+        if stored_target_folder:
+            candidate = os.path.join(stored_target_folder, "total_simulation")
+            if os.path.isdir(candidate):
+                return candidate
+        return None
+
+    def _resolve_action_json_path(self, candidate: str | None) -> str | None:
+        if not candidate:
+            return None
+        if candidate.endswith(".json") and os.path.isfile(candidate):
+            return candidate
+        total_simulation_dir = self._find_total_simulation_folder(candidate)
+        if total_simulation_dir:
+            return self._find_latest_action_json(total_simulation_dir)
+        return None
+
+    def _find_total_simulation_folder(self, candidate: str) -> str | None:
+        path = os.path.abspath(candidate)
+        if os.path.isfile(path):
+            path = os.path.dirname(path)
+        while True:
+            if os.path.isdir(path) and os.path.basename(path) == "total_simulation":
+                return path
+            sibling = os.path.join(os.path.dirname(path), "total_simulation")
+            if os.path.isdir(sibling):
+                return sibling
+            parent = os.path.dirname(path)
+            if parent == path:
+                break
+            path = parent
+        return None
+
+    def _find_latest_action_json(self, total_simulation_dir: str) -> str | None:
+        if not total_simulation_dir or not os.path.isdir(total_simulation_dir):
+            return None
+        candidates = [
+            os.path.join(total_simulation_dir, name)
+            for name in os.listdir(total_simulation_dir)
+            if name.endswith(".json")
+        ]
+        candidates.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        for candidate in candidates:
+            try:
+                with open(candidate, "r", encoding="utf-8") as handle:
+                    data = json.load(handle)
+                if self._extract_action_from_json(data):
+                    return candidate
+            except Exception:
+                continue
+        return None
 
     def _find_latest_checkpoint(self, checkpoint_dir: str) -> str | None:
         if not checkpoint_dir or not os.path.isdir(checkpoint_dir):
@@ -368,6 +452,11 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
                 if isinstance(item, str) and item.strip():
                     action_text = item.strip()
                     break
+                if isinstance(item, dict):
+                    value = item.get("action")
+                    if isinstance(value, str) and value.strip():
+                        action_text = value.strip()
+                        break
         elif isinstance(data, dict):
             for key in ("action", "action_text", "action_attempt", "last_action"):
                 value = data.get(key)
@@ -381,40 +470,19 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
                         if isinstance(item, str) and item.strip():
                             action_text = item.strip()
                             break
+                if action_text is None:
+                    action_sequence = data.get("action_sequence")
+                    if isinstance(action_sequence, list):
+                        for item in reversed(action_sequence):
+                            if isinstance(item, dict):
+                                value = item.get("action")
+                                if isinstance(value, str) and value.strip():
+                                    action_text = value.strip()
+                                    break
+                            if isinstance(item, str) and item.strip():
+                                action_text = item.strip()
+                                break
         return action_text
-
-    def _extract_action_from_checkpoint(self, payload: object) -> str | None:
-        if isinstance(payload, dict):
-            action_text = self._extract_action_from_json(payload)
-            if action_text:
-                return action_text
-            for key in (
-                "player_status",
-                "relevant_events",
-                "direct_effect_externality",
-                "convo_externality",
-                "env",
-            ):
-                history_source = payload.get(key)
-                history_text = self._extract_action_from_history(history_source)
-                if history_text:
-                    return history_text
-        return None
-
-    def _extract_action_from_history(self, history_source: object) -> str | None:
-        if history_source is None:
-            return None
-        if isinstance(history_source, list):
-            for item in reversed(history_source):
-                if isinstance(item, str) and item.strip():
-                    return item.strip()
-        if hasattr(history_source, "get_history"):
-            history = history_source.get_history()
-            if isinstance(history, list):
-                for item in reversed(history):
-                    if isinstance(item, str) and item.strip():
-                        return item.strip()
-        return None
 
     # def _fluctuate_value(self) -> dict:
     #     random_number = random.uniform(0,1)

@@ -19,7 +19,6 @@ from concordia.utils import measurements as measurements_lib
 from concordia.utils import sampling
 from openai import AzureOpenAI, OpenAI
 from typing_extensions import override
-import time
 
 _MAX_MULTIPLE_CHOICE_ATTEMPTS = 20
 
@@ -71,55 +70,27 @@ class BaseGPTModel(language_model.LanguageModel):
             {'role': 'user',
              'content': prompt}
         ]
-        for attempt in range(6):
-            try:
-                response = self._client.chat.completions.create(
-                    model=self._model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    timeout=timeout,
-                    stop=terminators,
-                    seed=seed,
-                )
+        try:
+            response = self._client.chat.completions.create(
+                model=self._model_name,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                stop=terminators,
+                seed=seed,
+            )
 
-                # ===== 新增：空响应检测 =====
-                if (
-                        response is None
-                        or not hasattr(response, "choices")
-                        or not response.choices
-                        or not hasattr(response.choices[0], "message")
-                        or response.choices[0].message is None
-                        or not response.choices[0].message.content
-                ):
-                    raise ValueError("Empty response from LLM")
+        except Exception as e:
+            print(f"Error during API call: {e}")
+            raise
 
-                # 如果一切正常，可以在这里 break 或 return
-                break
-
-            except Exception as e:
-                mess = str(e)
-
-                # 需要重试的情况
-                if (
-                        "InternalServerError" in mess
-                        or "503" in mess
-                        or "400" in mess
-                        or "Empty response" in mess
-                ):
-                    if attempt < 2:
-                        time.sleep(5)
-                        continue
-
-                # 其它异常直接抛出
-                raise
 
         if self._measurements is not None:
             self._measurements.publish_datum(
                 self._channel,
                 {'raw_text_length': len(response.choices[0].message.content)},
             )
-
         return response.choices[0].message.content
 
     @override
@@ -141,27 +112,28 @@ class BaseGPTModel(language_model.LanguageModel):
         for attempts in range(_MAX_MULTIPLE_CHOICE_ATTEMPTS):
             temperature = sampling.dynamically_adjust_temperature(
                 attempts, _MAX_MULTIPLE_CHOICE_ATTEMPTS)
-
-            sample = self.sample_text(
-                prompt,
-                temperature=temperature,
-                seed=seed,
-            )
-
-            #time.sleep(5)
-
-            answer = sampling.extract_choice_response(sample)
             try:
-                idx = responses.index(answer)
-            except ValueError:
+                sample = self.sample_text(
+                    prompt,
+                    temperature=temperature,
+                    seed=seed,
+                )
+                answer = sampling.extract_choice_response(sample)
+
+                try:
+                    idx = responses.index(answer)
+                except ValueError:
+                    continue
+                else:
+                    if self._measurements is not None:
+                        self._measurements.publish_datum(
+                            self._channel, {'choices_calls': attempts}
+                        )
+                    debug = {}
+                    return idx, responses[idx], debug
+            except Exception as e:
+                print(f"Error during attempt {attempts + 1}: {e}")
                 continue
-            else:
-                if self._measurements is not None:
-                    self._measurements.publish_datum(
-                        self._channel, {'choices_calls': attempts}
-                    )
-                debug = {}
-                return idx, responses[idx], debug
 
         raise language_model.InvalidResponseError(
             (f'Too many multiple choice attempts.\nLast attempt: {sample}, ' +
