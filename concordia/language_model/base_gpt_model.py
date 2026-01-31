@@ -72,6 +72,7 @@ class BaseGPTModel(language_model.LanguageModel):
              'content': prompt}
         ]
         #time.sleep(10)
+        include_stop = bool(terminators)
         for attempt in range(6):
             try:
                 request_params = {
@@ -82,7 +83,7 @@ class BaseGPTModel(language_model.LanguageModel):
                     "timeout": timeout,
                     "seed": seed,
                 }
-                if terminators:
+                if include_stop:
                     request_params["stop"] = terminators
 
                 response = self._client.chat.completions.create(**request_params)
@@ -103,6 +104,14 @@ class BaseGPTModel(language_model.LanguageModel):
 
             except Exception as e:
                 mess = str(e)
+
+                if (
+                        "Unsupported parameter" in mess
+                        and "stop" in mess
+                ):
+                    include_stop = False
+                    if attempt < 5:
+                        continue
 
                 if (
                         "Unsupported parameter" in mess
