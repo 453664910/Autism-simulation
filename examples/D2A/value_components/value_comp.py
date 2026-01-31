@@ -1,4 +1,6 @@
-import random
+import json
+import os
+import dill
 
 from collections.abc import Mapping
 import datetime
@@ -62,6 +64,7 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
         self._value_scale = [str(i) for i in sorted(DEFAULT_VALUE_SCALE)]
         self._value_change_cache = []
         self._action_cache = []
+        self._restore_action_cache_attempted = False
         self._value = int(init_value)
         self._value_name = value_name
         self._MAX_ITER = MAX_ITER
@@ -273,6 +276,9 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
     def _make_pre_act_value(self) -> str:
 
         updated_log = dict()#################3
+        if not self._action_cache and not self._restore_action_cache_attempted:
+            self._restore_action_cache_attempted = True
+            self._restore_action_cache_from_breakpoint()
         # only for the first time, skip the following steps
         # step 1: get the previous action
         if len(self._action_cache) != 0:
@@ -315,6 +321,117 @@ class desire(agent_components.action_spec_ignored.ActionSpecIgnored):
         self._logging_channel(total_log)
 
         return qualitative_desire
+
+    def _restore_action_cache_from_breakpoint(self) -> bool:
+        breakpoint_path = self._resolve_breakpoint_path()
+        if breakpoint_path is None:
+            print("[desire] no breakpoint file configured; action cache not restored.")
+            return False
+        if not os.path.isfile(breakpoint_path):
+            print(f"[desire] breakpoint file not found: {breakpoint_path}; action cache not restored.")
+            return False
+        if breakpoint_path.endswith(".pkl"):
+            with open(breakpoint_path, "rb") as breakpoint_file:
+                data = dill.load(breakpoint_file)
+            action_text = self._extract_action_from_checkpoint(data)
+        else:
+            with open(breakpoint_path, "r", encoding="utf-8") as breakpoint_file:
+                data = json.load(breakpoint_file)
+            action_text = self._extract_action_from_json(data)
+        if not action_text:
+            print(f"[desire] breakpoint file {breakpoint_path} has no valid action text; action cache not restored.")
+            return False
+        self._action_cache.append(action_text)
+        print(f"[desire] restored action cache from {breakpoint_path}: {action_text}")
+        return True
+
+    def _resolve_breakpoint_path(self) -> str | None:
+        breakpoint_file = os.environ.get("D2A_BREAKPOINT_FILE")
+        if breakpoint_file:
+            return breakpoint_file
+        checkpoint_file = os.environ.get("D2A_CHECKPOINT_FILE")
+        if checkpoint_file:
+            return checkpoint_file
+        checkpoint_dir = os.environ.get("D2A_CHECKPOINT_DIR")
+        if checkpoint_dir:
+            return self._find_latest_checkpoint(checkpoint_dir)
+        default_dir = os.path.join(os.getcwd(), "checkpoints")
+        return self._find_latest_checkpoint(default_dir)
+
+    def _find_latest_checkpoint(self, checkpoint_dir: str) -> str | None:
+        if not checkpoint_dir or not os.path.isdir(checkpoint_dir):
+            return None
+        best_step = None
+        best_path = None
+        for name in os.listdir(checkpoint_dir):
+            if not name.startswith("checkpoint_step_") or not name.endswith(".pkl"):
+                continue
+            step_str = name.replace("checkpoint_step_", "").replace(".pkl", "")
+            if not step_str.isdigit():
+                continue
+            step = int(step_str)
+            path = os.path.join(checkpoint_dir, name)
+            if best_step is None or step > best_step:
+                best_step = step
+                best_path = path
+        return best_path
+
+    def _extract_action_from_json(self, data: object) -> str | None:
+        action_text = None
+        if isinstance(data, str):
+            action_text = data.strip()
+        elif isinstance(data, list):
+            for item in reversed(data):
+                if isinstance(item, str) and item.strip():
+                    action_text = item.strip()
+                    break
+        elif isinstance(data, dict):
+            for key in ("action", "action_text", "action_attempt", "last_action"):
+                value = data.get(key)
+                if isinstance(value, str) and value.strip():
+                    action_text = value.strip()
+                    break
+            if action_text is None:
+                actions = data.get("actions")
+                if isinstance(actions, list):
+                    for item in reversed(actions):
+                        if isinstance(item, str) and item.strip():
+                            action_text = item.strip()
+                            break
+        return action_text
+
+    def _extract_action_from_checkpoint(self, payload: object) -> str | None:
+        if isinstance(payload, dict):
+            action_text = self._extract_action_from_json(payload)
+            if action_text:
+                return action_text
+            for key in (
+                "player_status",
+                "relevant_events",
+                "direct_effect_externality",
+                "convo_externality",
+                "env",
+            ):
+                history_source = payload.get(key)
+                history_text = self._extract_action_from_history(history_source)
+                if history_text:
+                    return history_text
+        return None
+
+    def _extract_action_from_history(self, history_source: object) -> str | None:
+        if history_source is None:
+            return None
+        if isinstance(history_source, list):
+            for item in reversed(history_source):
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
+        if hasattr(history_source, "get_history"):
+            history = history_source.get_history()
+            if isinstance(history, list):
+                for item in reversed(history):
+                    if isinstance(item, str) and item.strip():
+                        return item.strip()
+        return None
 
     # def _fluctuate_value(self) -> dict:
     #     random_number = random.uniform(0,1)
