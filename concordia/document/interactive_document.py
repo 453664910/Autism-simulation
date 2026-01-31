@@ -148,7 +148,7 @@ class InteractiveDocument(document.Document):
       answer_prefix: str = '',
       answer_suffix: str = '',
       max_tokens: int = DEFAULT_MAX_TOKENS,
-      terminators: Collection[str] = ('\n',),
+      terminators: Collection[str] = (),
       question_label: str = 'Question',
       answer_label: str = 'Answer',
   ) -> str:

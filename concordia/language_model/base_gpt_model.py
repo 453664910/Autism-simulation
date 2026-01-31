@@ -73,7 +73,8 @@ class BaseGPTModel(language_model.LanguageModel):
         ]
         #time.sleep(10)
         include_stop = bool(terminators)
-        for attempt in range(6):
+        max_attempts = 4
+        for attempt in range(max_attempts):
             try:
                 request_params = {
                     "model": self._model_name,
@@ -104,32 +105,38 @@ class BaseGPTModel(language_model.LanguageModel):
 
             except Exception as e:
                 mess = str(e)
+                if "stop" in request_params:
+                    if "Unsupported parameter" in mess and "stop" in mess:
+                        request_params.pop("stop", None)
+                        response = self._client.chat.completions.create(
+                            **request_params
+                        )
+                        if (
+                                response is None
+                                or not hasattr(response, "choices")
+                                or not response.choices
+                                or not hasattr(response.choices[0], "message")
+                                or response.choices[0].message is None
+                                or not response.choices[0].message.content
+                        ):
+                            raise ValueError("Empty response from LLM")
+                        break
 
-                if (
-                        "Unsupported parameter" in mess
-                        and "stop" in mess
-                ):
-                    include_stop = False
-                    if attempt < 5:
-                        continue
-
-                if (
-                        "Unsupported parameter" in mess
-                        and "stop" in mess
-                        and "stop" in request_params
-                ):
-                    request_params.pop("stop", None)
-                    response = self._client.chat.completions.create(**request_params)
-                    if (
-                            response is None
-                            or not hasattr(response, "choices")
-                            or not response.choices
-                            or not hasattr(response.choices[0], "message")
-                            or response.choices[0].message is None
-                            or not response.choices[0].message.content
-                    ):
-                        raise ValueError("Empty response from LLM")
-                    break
+                    if "Empty response" in mess:
+                        request_params.pop("stop", None)
+                        response = self._client.chat.completions.create(
+                            **request_params
+                        )
+                        if (
+                                response is None
+                                or not hasattr(response, "choices")
+                                or not response.choices
+                                or not hasattr(response.choices[0], "message")
+                                or response.choices[0].message is None
+                                or not response.choices[0].message.content
+                        ):
+                            raise ValueError("Empty response from LLM")
+                        break
 
                 # 需要重试的情况
                 if (
@@ -138,7 +145,7 @@ class BaseGPTModel(language_model.LanguageModel):
                         or "400" in mess
                         or "Empty response" in mess
                 ):
-                    if attempt < 2:
+                    if attempt < max_attempts - 1:
                         time.sleep(5)
                         continue
 

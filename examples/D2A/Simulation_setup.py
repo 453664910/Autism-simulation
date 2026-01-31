@@ -51,7 +51,7 @@ else:
 # the language model used to generate the text
 # you can also use other models, detailed see the definition of language_model_setup
 api_type = 'openai'
-model_name = 'gpt-5.1-chat-2025-11-13'
+model_name = 'gpt-5.1-chat'
 api_key='sk-iEI0qYvpEFmYOuX8jmTxSF4kCn9JbSFN4dCR73Mvd3VeAmZC'
 device = 'cpu'
 model = utils.language_model_setup(
