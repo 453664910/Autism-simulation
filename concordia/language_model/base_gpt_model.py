@@ -21,6 +21,7 @@ from openai import AzureOpenAI, OpenAI
 from typing_extensions import override
 import time
 import logging
+import json
 
 _MAX_MULTIPLE_CHOICE_ATTEMPTS = 20
 
@@ -78,15 +79,46 @@ class BaseGPTModel(language_model.LanguageModel):
         response = None
         last_error: Exception | None = None
 
-        def _is_empty_response(llm_response) -> bool:
-            return (
+        def _extract_response_text(llm_response) -> str | None:
+            if (
                 llm_response is None
                 or not hasattr(llm_response, "choices")
                 or not llm_response.choices
                 or not hasattr(llm_response.choices[0], "message")
                 or llm_response.choices[0].message is None
-                or not llm_response.choices[0].message.content
-            )
+            ):
+                return None
+
+            for choice in llm_response.choices:
+                message = getattr(choice, "message", None)
+                if message is None:
+                    continue
+
+                content = message.content
+                if isinstance(content, str) and content.strip():
+                    return content
+                if content is not None and not isinstance(content, str):
+                    return str(content)
+
+                refusal = getattr(message, "refusal", None)
+                if isinstance(refusal, str) and refusal.strip():
+                    return refusal
+
+                tool_calls = getattr(message, "tool_calls", None)
+                if tool_calls:
+                    return json.dumps(tool_calls, ensure_ascii=False)
+
+                function_call = getattr(message, "function_call", None)
+                if function_call:
+                    return json.dumps(function_call, ensure_ascii=False)
+
+            first_message = getattr(llm_response.choices[0], "message", None)
+            if first_message is not None:
+                return ""
+
+            return None
+
+        response_text = None
         for attempt in range(max_attempts):
             try:
                 request_params = {
@@ -103,7 +135,8 @@ class BaseGPTModel(language_model.LanguageModel):
                 response = self._client.chat.completions.create(**request_params)
 
                 # ===== 新增：空响应检测 =====
-                if _is_empty_response(response):
+                response_text = _extract_response_text(response)
+                if response_text is None:
                     last_error = ValueError("Empty response from LLM")
                     if attempt < max_attempts - 1:
                         time.sleep(5 + attempt * 2)
@@ -137,7 +170,7 @@ class BaseGPTModel(language_model.LanguageModel):
 
                 # 其它异常直接抛出
                 raise
-        if _is_empty_response(response):
+        if response_text is None:
             logging.warning(
                 "Empty response from LLM after retries, using fallback. Last error: %s",
                 last_error,
@@ -147,10 +180,10 @@ class BaseGPTModel(language_model.LanguageModel):
         if self._measurements is not None:
             self._measurements.publish_datum(
                 self._channel,
-                {'raw_text_length': len(response.choices[0].message.content)},
+                {'raw_text_length': len(response_text)},
             )
 
-        return response.choices[0].message.content
+        return response_text
 
     @override
     def sample_choice(

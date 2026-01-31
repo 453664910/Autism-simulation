@@ -20,7 +20,7 @@ checkpoint_file = None
 # how many episodes in each simulation, each episode is 20 minutes
 episode_length = 60
 # NUM_PLAYERS is the number of NT players in the simulation
-NUM_PLAYERS = 10
+NUM_PLAYERS = 15
 
 # whether to use the language model, if set to True, No language model will be used
 # use for debugging
@@ -53,7 +53,7 @@ else:
 api_type = 'openai'
 model_name = 'gpt-5.1-chat'
 api_key='sk-iEI0qYvpEFmYOuX8jmTxSF4kCn9JbSFN4dCR73Mvd3VeAmZC'
-device = 'cpu'
+device = 'gpu'
 model = utils.language_model_setup(
     api_type=api_type,
     model_name=model_name,
