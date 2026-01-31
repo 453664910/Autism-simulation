@@ -8,6 +8,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any, Iterable, Optional
+import sentence_transformers
 
 import dill
 
@@ -18,7 +19,7 @@ for path in (str(PROJECT_ROOT), str(D2A_DIR)):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import Simulation_setup as setup
+from concordia.language_model import utils
 from Environment_construction.generate_preschool_sitution import generate_preschool
 from Environment_construction.generate_preschool_sitution import generate_prompt
 from Environment_construction.generate_preschool_sitution import daily_schedule
@@ -30,6 +31,16 @@ from concordia.clocks import game_clock
 from concordia.typing import entity
 from D2A_agent.ValueAgent import build_D2A_agent
 from value_components.init_value_info_social import construct_all_profile_dict
+
+
+CHECKPOINT_DIR = None
+CHECKPOINT_FILE = None
+API_TYPE = "openai"
+MODEL_NAME = "gpt-4o-mini"
+API_KEY = "YOUR_API_KEY"
+DISABLE_LANGUAGE_MODEL = False
+DEVICE = "cpu"
+ST_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 
 
 REQUEST_PAYLOAD: dict[str, Any] = {
@@ -366,8 +377,8 @@ def main() -> int:
 
     register_dill_reducers()
 
-    checkpoint_dir = args.checkpoint_dir or setup.checkpoint_folder
-    checkpoint_file = args.checkpoint_file or setup.checkpoint_file
+    checkpoint_dir = args.checkpoint_dir or CHECKPOINT_DIR
+    checkpoint_file = args.checkpoint_file or CHECKPOINT_FILE
 
     if not checkpoint_dir and not checkpoint_file:
         raise RuntimeError("No checkpoint directory or file provided.")
@@ -381,8 +392,14 @@ def main() -> int:
 
     os.makedirs(output_dir, exist_ok=True)
 
-    model = setup.model
-    embedder = setup.embedder
+    model = utils.language_model_setup(
+        api_type=API_TYPE,
+        model_name=MODEL_NAME,
+        api_key=API_KEY,
+        disable_language_model=DISABLE_LANGUAGE_MODEL,
+    )
+    st_model = sentence_transformers.SentenceTransformer(ST_MODEL_NAME)
+    embedder = lambda x: st_model.encode(x, show_progress_bar=False)
     shared_memory, _shared_context = _build_shared_context(model)
     _ = _shared_context
 
