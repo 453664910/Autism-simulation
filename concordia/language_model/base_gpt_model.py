@@ -74,15 +74,18 @@ class BaseGPTModel(language_model.LanguageModel):
         #time.sleep(10)
         for attempt in range(6):
             try:
-                response = self._client.chat.completions.create(
-                    model=self._model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    timeout=timeout,
-                    stop=terminators,
-                    seed=seed,
-                )
+                request_params = {
+                    "model": self._model_name,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "timeout": timeout,
+                    "seed": seed,
+                }
+                if terminators:
+                    request_params["stop"] = terminators
+
+                response = self._client.chat.completions.create(**request_params)
 
                 # ===== 新增：空响应检测 =====
                 if (
@@ -100,6 +103,24 @@ class BaseGPTModel(language_model.LanguageModel):
 
             except Exception as e:
                 mess = str(e)
+
+                if (
+                        "Unsupported parameter" in mess
+                        and "stop" in mess
+                        and "stop" in request_params
+                ):
+                    request_params.pop("stop", None)
+                    response = self._client.chat.completions.create(**request_params)
+                    if (
+                            response is None
+                            or not hasattr(response, "choices")
+                            or not response.choices
+                            or not hasattr(response.choices[0], "message")
+                            or response.choices[0].message is None
+                            or not response.choices[0].message.content
+                    ):
+                        raise ValueError("Empty response from LLM")
+                    break
 
                 # 需要重试的情况
                 if (
