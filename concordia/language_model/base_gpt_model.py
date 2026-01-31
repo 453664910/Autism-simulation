@@ -20,6 +20,7 @@ from concordia.utils import sampling
 from openai import AzureOpenAI, OpenAI
 from typing_extensions import override
 import time
+import logging
 
 _MAX_MULTIPLE_CHOICE_ATTEMPTS = 20
 
@@ -74,6 +75,18 @@ class BaseGPTModel(language_model.LanguageModel):
         #time.sleep(10)
         include_stop = bool(terminators)
         max_attempts = 4
+        response = None
+        last_error: Exception | None = None
+
+        def _is_empty_response(llm_response) -> bool:
+            return (
+                llm_response is None
+                or not hasattr(llm_response, "choices")
+                or not llm_response.choices
+                or not hasattr(llm_response.choices[0], "message")
+                or llm_response.choices[0].message is None
+                or not llm_response.choices[0].message.content
+            )
         for attempt in range(max_attempts):
             try:
                 request_params = {
@@ -90,53 +103,26 @@ class BaseGPTModel(language_model.LanguageModel):
                 response = self._client.chat.completions.create(**request_params)
 
                 # ===== 新增：空响应检测 =====
-                if (
-                        response is None
-                        or not hasattr(response, "choices")
-                        or not response.choices
-                        or not hasattr(response.choices[0], "message")
-                        or response.choices[0].message is None
-                        or not response.choices[0].message.content
-                ):
-                    raise ValueError("Empty response from LLM")
+                if _is_empty_response(response):
+                    last_error = ValueError("Empty response from LLM")
+                    if attempt < max_attempts - 1:
+                        time.sleep(5 + attempt * 2)
+                        continue
+                    break
 
                 # 如果一切正常，可以在这里 break 或 return
                 break
 
             except Exception as e:
+                last_error = e
                 mess = str(e)
                 if "stop" in request_params:
                     if "Unsupported parameter" in mess and "stop" in mess:
-                        request_params.pop("stop", None)
-                        response = self._client.chat.completions.create(
-                            **request_params
-                        )
-                        if (
-                                response is None
-                                or not hasattr(response, "choices")
-                                or not response.choices
-                                or not hasattr(response.choices[0], "message")
-                                or response.choices[0].message is None
-                                or not response.choices[0].message.content
-                        ):
-                            raise ValueError("Empty response from LLM")
-                        break
+                        include_stop = False
+                        continue
 
                     if "Empty response" in mess:
-                        request_params.pop("stop", None)
-                        response = self._client.chat.completions.create(
-                            **request_params
-                        )
-                        if (
-                                response is None
-                                or not hasattr(response, "choices")
-                                or not response.choices
-                                or not hasattr(response.choices[0], "message")
-                                or response.choices[0].message is None
-                                or not response.choices[0].message.content
-                        ):
-                            raise ValueError("Empty response from LLM")
-                        break
+                        include_stop = False
 
                 # 需要重试的情况
                 if (
@@ -146,11 +132,17 @@ class BaseGPTModel(language_model.LanguageModel):
                         or "Empty response" in mess
                 ):
                     if attempt < max_attempts - 1:
-                        time.sleep(5)
+                        time.sleep(5 + attempt * 2)
                         continue
 
                 # 其它异常直接抛出
                 raise
+        if _is_empty_response(response):
+            logging.warning(
+                "Empty response from LLM after retries, using fallback. Last error: %s",
+                last_error,
+            )
+            return "Unknown."
 
         if self._measurements is not None:
             self._measurements.publish_datum(
